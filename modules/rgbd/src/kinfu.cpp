@@ -154,9 +154,9 @@ KinFuImpl<T>::KinFuImpl(const Params &_params) :
                           params.tsdf_trunc_dist, params.tsdf_max_weight,
                           params.raycast_step_factor)),
     pyrPoints(), pyrNormals(), pyrClasses()
-//-------------------------------------------------modification
+//------------------------------------------modification
     // pp_ptr();
-//-------------------------------------------------modification
+//------------------------------------------modification
 {
     reset();
 }
