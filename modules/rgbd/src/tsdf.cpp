@@ -20,6 +20,13 @@
 #include <set>
 #include <vector>
 
+//add the include for gitesh code
+#include <eigen3/Eigen/Geometry>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Eigenvalues> 
+#include <eigen3/unsupported/Eigen/SpecialFunctions>
+#include "momentmatching.h"
+
 const int K = 57;
 
 
@@ -35,7 +42,7 @@ struct Voxel
 {
     volumeType v;
     int weight;
-    std::array<int,6> semantic_weights;
+    std::array<int,7> semantic_weights;//<-----------------modify the num from 6 to 7
 };
 
 typedef Vec<uchar, sizeof(Voxel)> VecT;
@@ -393,8 +400,44 @@ struct IntegrateInvoker : ParallelLoopBody
 
     // std::vector<int> mVector;
 
+
+
+        //------------------------------------------------modification
+        using namespace Eigen;
+        static constexpr int NUM_CLASSES = 7;
+        Matrix<double, NUM_CLASSES, 2> input_dataSet;
+        input_dataSet<< 1.,1/3.,5.,1/3.,7.,1/3.,8.,1/3.,2.,1/3.,4.,1/3.,6.,1/3.;
+        // // Matrix<double , NUM_CLASSES, 2>input_dataSet;
+        // // input_dataSet<< 
+        // //     //mu   sigma
+        // //     0.543, 0.065, //Concrete 
+        // //     0.577, 0.077, //Grass
+        // //     0.428, 0.059, //Pebbles
+        // //     0.478, 0.113, //Rocks
+        // //     0.372, 0.055, //Wood
+        // //     0.616, 0.048, //Rubber
+        // //     0.583, 0.068; //Rug
+
+
+        Matrix<double , NUM_CLASSES, 1> input_a;
+        input_a << 2., 14., 2., 10.,4., 8.,4.;
+        vector<double> measurements = {4.99164777 ,4.77152141 ,3.91641394, 4.55800433 ,3.8606777 , 3.74498796,
+        5.72879082 ,5.7962263 , 5.07160451 ,4.90461636};
+        momentmatching(input_dataSet, input_a, measurements);
+        //------------------------------------------------modification
+
+
+
         //---------------------------------------------------------modification 
         std::set<int> class_index_set;
+        
+        //print out the class index in vector inside the voxel
+        // for (int i = 0; i < 7; i++){
+        //     std::cout << (volDataStart + 1270*500)->semantic_weights[i] << " ";
+
+        // }
+        // std::cout << std::endl;
+ 
         // std::vector<std::vector<bool>> table;
         // table.resize(2000);
         // for (int i = 0; i < table.size(); i++){
@@ -736,8 +779,11 @@ struct IntegrateInvoker : ParallelLoopBody
                         if(m >= 40 && m < 50){
                             voxel.semantic_weights[4]+=1;
                         }
-                        if(m >= 50 && m < 57){
+                        if(m >= 50 && m < 55){
                             voxel.semantic_weights[5]+=1;
+                        }  
+                        if(m >= 55 && m < 57){
+                            voxel.semantic_weights[6]+=1;
                         }  
                         
                         // for (int y = 0; y < volume.maxIndexMat.rows; y++) {
@@ -1182,7 +1228,7 @@ inline volumeType TSDFVolumeCPU::getVoxelClass(const v_float32x4& p) const
 
     int coordBase = ix*xdim + iy*ydim + iz*zdim; 
 
-    const std::array<int, 6>& weights = volData[coordBase].semantic_weights;
+    const std::array<int, 7>& weights = volData[coordBase].semantic_weights;//modification: change 6 to 7
     int maxWeightIndex = 0;
     int maxWeight = weights[0];
 
