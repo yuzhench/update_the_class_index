@@ -109,6 +109,7 @@ public:
 
     //-------------------------------------------------modification 
     void update_friction (std::pair<int,int> x_y,int class_index) override;
+
     //-------------------------------------------------modification
 
 private:
