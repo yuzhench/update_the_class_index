@@ -72,7 +72,7 @@ public:
     Point3f getNormalVoxel(cv::Point3f p) const;
 
     //-------------------------------------modification 
-    virtual void update_friction_tsdf(bool update, std::pair<int,int> x_y,int class_index) override;
+    virtual void update_friction_tsdf(bool update, std::pair<int,int> x_y,int class_index,Eigen::Matrix<double, 7, 2>  *_dataSet, std::vector<double> _measurements) override;
     virtual bool get_update_friction() override;
     virtual std::vector<int> get_x_y_class() override;
    
@@ -144,11 +144,14 @@ cv::Ptr<TSDFVolume> makeTSDFVolume(Point3i _res, float _voxelSize, cv::Affine3f 
 
 
 //-------------------------------------modification 
-void TSDFVolumeCPU::update_friction_tsdf(bool update, std::pair<int,int> x_y, int class_index){ 
+void TSDFVolumeCPU::update_friction_tsdf(bool update, std::pair<int,int> x_y, int class_index, Eigen::Matrix<double, 7, 2>  *_dataSet, std::vector<double> _measurements){ 
     std::cout << "hello world" << std::endl;
+    std::cout << "the size of the measurement" <<  measurements.size() << std::endl;
     x_value = x_y.first;
     y_value = x_y.second;
     updated_friction = true;
+    dataSet = _dataSet;
+    measurements = _measurements;
 }
 
 bool TSDFVolumeCPU::get_update_friction(){
@@ -340,7 +343,7 @@ struct IntegrateInvoker : ParallelLoopBody
     // }
     // //--------------------------------------------------modification
     IntegrateInvoker(TSDFVolumeCPU& _volume, const Depth& _depth, const Semantic& _semantic, Intr intrinsics, cv::Affine3f cameraPose,
-                     float depthFactor,/*modification-->*/ bool updated_friction_input,int x_value_input, int y_value_input, int class_index_input) :
+                     float depthFactor,/*modification-->*/ bool updated_friction_input,int x_value_input, int y_value_input, int class_index_input,Eigen::Matrix<double, 7, 2> *dataSet_input, std::vector<double> measurements_input) :
         ParallelLoopBody(),
         volume(_volume),
         depth(_depth),
@@ -355,6 +358,8 @@ struct IntegrateInvoker : ParallelLoopBody
         x_value (x_value_input),
         y_value (y_value_input),
         class_index(class_index_input),
+        dataSet(dataSet_input),
+        measurements(measurements_input),
         //-----------------------------------------------modification
         mask_area(720, std::vector<int>(1280, 0))
     {
@@ -406,7 +411,8 @@ struct IntegrateInvoker : ParallelLoopBody
         using namespace Eigen;
         static constexpr int NUM_CLASSES = 7;
         Matrix<double, NUM_CLASSES, 2> input_dataSet;
-        input_dataSet<< 1.,1/3.,5.,1/3.,7.,1/3.,8.,1/3.,2.,1/3.,4.,1/3.,6.,1/3.;
+        // input_dataSet<< 1.,1/3.,5.,1/3.,7.,1/3.,8.,1/3.,2.,1/3.,4.,1/3.,6.,1/3.;
+        input_dataSet<<1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.;
         // // Matrix<double , NUM_CLASSES, 2>input_dataSet;
         // // input_dataSet<< 
         // //     //mu   sigma
@@ -423,7 +429,15 @@ struct IntegrateInvoker : ParallelLoopBody
         input_a << 2., 14., 2., 10.,4., 8.,4.;
         vector<double> measurements = {4.99164777 ,4.77152141 ,3.91641394, 4.55800433 ,3.8606777 , 3.74498796,
         5.72879082 ,5.7962263 , 5.07160451 ,4.90461636};
-        momentmatching(input_dataSet, input_a, measurements);
+        // momentmatching(input_dataSet, input_a, measurements);
+        
+        //check if you can change from outside
+        if (updated_friction_struct == true){
+            // std::cout<< "start to change the dataset inside of the operator()" << std::endl;
+            // // *dataSet = input_dataSet;
+            (*dataSet)(1,0) = 100.;
+        }
+         
         //------------------------------------------------modification
 
 
@@ -474,7 +488,7 @@ struct IntegrateInvoker : ParallelLoopBody
         //     // std::cout << "----------------finish" << std::endl;
         // }//end_of_if
 
-         
+        //create a mask to the whole object that the measured pixel is in 
         if (updated_friction_struct == true){
             int x_coordinate = x_value;
             int y_coordinate = y_value;
@@ -659,6 +673,7 @@ struct IntegrateInvoker : ParallelLoopBody
                         m = semantic.at<uchar>(yi,xi);
 
                         //---------------------------------------------------------modification
+                        //when we use the sensor to update the measurement we need to update the class index directly 
                         if(updated_friction_struct == true && mask_area[yi][xi] == 1){
                             m = 35;
                             // std::cout << "this is the bug?" << std::endl;
@@ -785,6 +800,20 @@ struct IntegrateInvoker : ParallelLoopBody
                         if(m >= 55 && m < 57){
                             voxel.semantic_weights[6]+=1;
                         }  
+
+
+                        //----------------------------------------------------------modification
+                        //we use the gitesh code here to update the class_index vector (size == 7) 
+                        //inside of the voxel struct 
+
+                        Matrix<double , 7, 1> input_a ;
+                        for (int i = 0; i < 7; i++){
+                            input_a<<voxel.semantic_weights[i];
+                        }
+                        //since all the parameters are passed by reference, so they will be updated
+                        // momentmatching(dataSet,input_a,measurements);
+
+                        //----------------------------------------------------------modification
                         
                         // for (int y = 0; y < volume.maxIndexMat.rows; y++) {
                         //     for (int x = 0; x < volume.maxIndexMat.cols; x++) {
@@ -1100,6 +1129,8 @@ struct IntegrateInvoker : ParallelLoopBody
     int x_value;
     int y_value;
     int class_index;
+    Eigen::Matrix<double, 7, 2> *dataSet;
+    std::vector<double> measurements;
     //--------------------------------modification 
 };
 
@@ -1114,7 +1145,7 @@ void TSDFVolumeCPU::integrate(InputArray _depth, const Semantic& semantic, float
     CV_Assert(_depth.type() == DEPTH_TYPE);
     Depth depth = _depth.getMat();
     
-    IntegrateInvoker ii(*this, depth, semantic, intrinsics, cameraPose, depthFactor,/*modification-->*/updated_friction,x_value,y_value,class_index);
+    IntegrateInvoker ii(*this, depth, semantic, intrinsics, cameraPose, depthFactor,/*modification-->*/updated_friction,x_value,y_value,class_index, dataSet, measurements);
    
     Range range(0, volResolution.x);
     parallel_for_(range, ii);//<--------------------this command print out the index of each class

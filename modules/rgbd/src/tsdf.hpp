@@ -46,12 +46,14 @@ public:
     
     //-------------------------------------modification 
     bool updated_friction; 
-    virtual void update_friction_tsdf(bool update, std::pair<int,int> x_y,int class_index) = 0;
+    virtual void update_friction_tsdf(bool update, std::pair<int,int> x_y,int class_index, Eigen::Matrix<double, 7, 2> *dataSet, std::vector<double> measurements) = 0;
     virtual bool get_update_friction() = 0;
     virtual std::vector<int> get_x_y_class() = 0;
     int x_value;
     int y_value;
     int class_index;
+    Eigen::Matrix<double, 7, 2> *dataSet;
+    std::vector<double> measurements;
     //-------------------------------------modification 
 };
 

@@ -8,6 +8,11 @@
 #include "fast_icp.hpp"
 #include "tsdf.hpp"
 #include "kinfu_frame.hpp"
+//add the include for gitesh code
+#include <eigen3/Eigen/Geometry>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Eigenvalues> 
+#include <eigen3/unsupported/Eigen/SpecialFunctions>
 
 namespace cv {
 namespace kinfu {
@@ -63,6 +68,10 @@ Ptr<Params> Params::defaultParams()
     // depth truncation is not used by default
     //p.icp_truncate_depth_dist = 0.f;        //meters, disabled
 
+    //---------------------------------------------modification 
+    p.NUM_CLASSES = 7;
+    //---------------------------------------------modification 
+
     return makePtr<Params>(p);
 }
 
@@ -108,19 +117,18 @@ public:
     bool updateT(const T& depth, const Semantic& _semantic);
 
     //-------------------------------------------------modification 
-    void update_friction (std::pair<int,int> x_y,int class_index) override;
+    void update_friction (std::pair<int,int> x_y,int class_index, Eigen::Matrix<double,7 , 2>  *dataSet, std::vector<double> measurements) override;
 
     //-------------------------------------------------modification
 
 private:
     Params params;
-
     cv::Ptr<ICP> icp;
     cv::Ptr<TSDFVolume> volume;
 
     //-------------------------------------------------modification
     // cv::Ptr<ParallelLoopBody> pp_ptr;
-    
+     
     //-------------------------------------------------modification
      
     
@@ -137,10 +145,16 @@ private:
  
 //-------------------------------------------------modification 
 template< typename T >
-void KinFuImpl<T>::update_friction (std::pair<int,int> x_y,int class_index){
-    volume->update_friction_tsdf(true, x_y, class_index);
+void KinFuImpl<T>::update_friction (std::pair<int,int> x_y,int class_index, Eigen::Matrix<double, 7, 2> *dataSet, std::vector<double> measurements){
+    volume->update_friction_tsdf(true, x_y, class_index, dataSet, measurements);
     std::cout <<"class_index is update_friction_tsdf " <<class_index << std::endl;
     // pp_ptr->pp_test();
+
+    //test how the pointer works
+    // std::cout<< "change in kinfu" << std::endl;
+    // // *dataSet = input_dataSet;
+    // (*dataSet)(1,0) = 100.;
+    
 }   
 //-------------------------------------------------modification
 
@@ -156,6 +170,7 @@ KinFuImpl<T>::KinFuImpl(const Params &_params) :
     pyrPoints(), pyrNormals(), pyrClasses()
 //------------------------------------------modification
     // pp_ptr();
+    
 //------------------------------------------modification
 {
     reset();

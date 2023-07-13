@@ -10,6 +10,13 @@
 #include "opencv2/core.hpp"
 #include "opencv2/core/affine.hpp"
 
+//add the include for gitesh code
+#include <eigen3/Eigen/Geometry>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Eigenvalues> 
+#include <eigen3/unsupported/Eigen/SpecialFunctions>
+#include <vector>
+
 namespace cv {
 namespace kinfu {
 //! @addtogroup kinect_fusion
@@ -105,6 +112,11 @@ struct CV_EXPORTS_W Params
 
     // depth truncation is not used by default
     // float icp_truncate_depth_dist; //meters
+
+    //----------------------------------------------------------modification 
+    int NUM_CLASSES;
+    //----------------------------------------------------------modification
+
 };
 
 /** @brief KinectFusion implementation
@@ -197,9 +209,8 @@ g that I need to come into la
 
 
     //-------------------------------------------------modification 
-    virtual void update_friction (std::pair<int,int> x_y, int class_index) = 0;
+    virtual void update_friction (std::pair<int,int> x_y, int class_index, Eigen::Matrix<double, 7, 2> * dataSet, std::vector<double> measurements) = 0;
     //-------------------------------------------------modification 
-
 
 };
 
