@@ -178,10 +178,11 @@ struct RenderInvoker : ParallelLoopBody
     Mat_<Vec4b>& img;
     Affine3f lightPose;
     Size sz;
-    };
+};
 
 
-     
+
+
 // struct RenderInvoker : ParallelLoopBody
 // {
 //     RenderInvoker(const Points& _points, const Normals& _normals, Mat_<Vec4b>& _img, Affine3f _lightPose, Size _sz) :
@@ -783,10 +784,17 @@ void renderPointsNormals(InputArray _points, InputArray _normals, InputArray _vo
     VoxelClass index = _voxelClass.getMat();
     Mat_<Vec4b> img = image.getMat();
 
-    RenderInvoker ri(points, normals,index,img, lightPose, sz);
+
+    std::cout << "-----------------------------------seg-------------------5" << std::endl;
+
+    RenderInvoker ri(points, normals, index, img, lightPose, sz);
+
+    std::cout << "-----------------------------------seg-------------------6" << std::endl;
     Range range(0, sz.height);
     const int nstripes = -1;
     parallel_for_(range, ri, nstripes);
+
+    std::cout << "-----------------------------------seg-------------------6" << std::endl;
 }
 
 

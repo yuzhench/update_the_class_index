@@ -50,7 +50,7 @@ Ptr<Params> Params::defaultParams()
 
     p.volumeDims = Vec3i::all(512); //number of voxels
 
-    float volSize = 1.f;
+    float volSize = 3.f;
     p.voxelSize = volSize/512.f; //meters
 
     // default pose of volume cube
@@ -112,9 +112,9 @@ public:
     const Affine3f getPose() const CV_OVERRIDE;
 
 
-    bool update(InputArray depth, const Semantic& _semantic) override;
+    bool update(InputArray depth, const Semantic& _semantic, bool stope_video_input) override;
 
-    bool updateT(const T& depth, const Semantic& _semantic);
+    bool updateT(const T& depth, const Semantic& _semantic, bool stope_video_input);
 
     //-------------------------------------------------modification 
     void update_friction (std::pair<int,int> x_y,int class_index, Eigen::Matrix<double,7 , 2>  *dataSet, std::vector<double> measurements) override;
@@ -202,7 +202,7 @@ const Affine3f KinFuImpl<T>::getPose() const
 
 
 template<>
-bool KinFuImpl<Mat>::update(InputArray _depth, const Semantic& _semantic)
+bool KinFuImpl<Mat>::update(InputArray _depth, const Semantic& _semantic,bool stope_video_input)
 {
     CV_Assert(!_depth.empty() && _depth.size() == params.frameSize);
 
@@ -211,17 +211,17 @@ bool KinFuImpl<Mat>::update(InputArray _depth, const Semantic& _semantic)
     if(_depth.isUMat())
     {
         _depth.copyTo(depth);
-        return updateT(depth, _semantic);
+        return updateT(depth, _semantic, stope_video_input);
     }
     else
     {
-        return updateT(_depth.getMat(), _semantic);
+        return updateT(_depth.getMat(), _semantic, stope_video_input);
     }
 }
 
 
 template<>
-bool KinFuImpl<UMat>::update(InputArray _depth, const Semantic& _semantic)
+bool KinFuImpl<UMat>::update(InputArray _depth, const Semantic& _semantic,bool stope_video_input)
 {
     CV_Assert(!_depth.empty() && _depth.size() == params.frameSize);
 
@@ -229,17 +229,17 @@ bool KinFuImpl<UMat>::update(InputArray _depth, const Semantic& _semantic)
     if(!_depth.isUMat())
     {
         _depth.copyTo(depth);
-        return updateT(depth, _semantic); 
+        return updateT(depth, _semantic,stope_video_input); 
     }
     else
     {
-        return updateT(_depth.getUMat(), _semantic);
+        return updateT(_depth.getUMat(), _semantic,stope_video_input);
     }
 }
 
 
 template< typename T >
-bool KinFuImpl<T>::updateT(const T& _depth, const Semantic& _semantic)
+bool KinFuImpl<T>::updateT(const T& _depth, const Semantic& _semantic, bool stope_video_input)
 {
     CV_TRACE_FUNCTION();
 
@@ -265,8 +265,13 @@ bool KinFuImpl<T>::updateT(const T& _depth, const Semantic& _semantic)
     if(frameCounter == 0)
     {
         // use depth instead of distance
+
+        std::cout << "-----------------------------------seg-------------------2" << std::endl;
+
         
-        volume->integrate(depth,_semantic, params.depthFactor, pose, params.intr);
+        volume->integrate(depth,_semantic, params.depthFactor, pose, params.intr/*, stope_video_input*/);
+
+        std::cout << "-----------------------------------seg-------------------3" << std::endl;
         
         pyrPoints  = newPoints;
         pyrNormals = newNormals;
@@ -284,13 +289,18 @@ bool KinFuImpl<T>::updateT(const T& _depth, const Semantic& _semantic)
         float rnorm = (float)cv::norm(affine.rvec());
         float tnorm = (float)cv::norm(affine.translation());
 
+        std::cout << "-----------------------------------seg-------------------" << std::endl;
+
 
         // We do not integrate volume if camera does not move
         if((rnorm + tnorm)/2 >= params.tsdf_min_camera_movement)
         { 
             // use depth instead of distance
-            volume->integrate(depth, _semantic, params.depthFactor, pose, params.intr);
-        }
+            if (stope_video_input == false){
+                volume->integrate(depth, _semantic, params.depthFactor, pose, params.intr/*, stope_video_input*/);
+                std::cout <<"stope_video_input is true" << std::endl;
+            }
+         }
         
         T& points  = pyrPoints [0];
         T& normals = pyrNormals[0];
@@ -319,7 +329,12 @@ void KinFuImpl<T>::render(OutputArray image, const Matx44f& _cameraPose) const
     if((cameraPose.rotation() == pose.rotation() && cameraPose.translation() == pose.translation()) ||
        (cameraPose.rotation() == id.rotation()   && cameraPose.translation() == id.translation()))
     {
+        std::cout << "-----------------------------------seg-------------------4" << std::endl;
+
         renderPointsNormals(pyrPoints[0], pyrNormals[0], pyrClasses[0], image, params.lightPose);
+
+        std::cout << "-----------------------------------seg-------------------5_bad" << std::endl;
+
     }
     else
     {   
